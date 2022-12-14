@@ -13,7 +13,7 @@ private:
     struct pso_params { double w, phi_p, phi_g; };
     struct pso_state {
         unsigned curNumIterations;
-        std::vector<double> globalPos;
+        std::vector<double> globalBestPos;
         double globalBestVal; 
         std::vector<std::pair<double, double>> bounds; 
         pso_params swarmParameters; 
@@ -24,7 +24,10 @@ private:
         unsigned swarmSize; 
         unsigned dimention; 
     };
-    void makeStep(pso_state &curSwarmState); 
+    void makeStep(
+        const std::function<double(const std::vector<double>&)> &targFunc,
+        pso_state &curSwarmState
+    ); 
 
     pso_params swarmParams; 
     pso_state swarmState;
@@ -40,7 +43,7 @@ public:
         unsigned swarmSize
     ); 
     void run(
-        const std::function<double(const std::vector<double>&)> &targFunc, 
+        const std::function<double(const std::vector<double>&)> &targFunc,
         unsigned numOfIterations
     ); 
     bool dump(
