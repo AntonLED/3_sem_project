@@ -9,23 +9,25 @@
 
 class PSO final {
 private:
-    double uniform01(); 
+    double uniformAB(double A, double B); 
     struct pso_params { double w, phi_p, phi_g; };
     struct pso_state {
         unsigned curNumIterations;
         std::vector<double> globalPos;
-        double globalVal; 
-        std::vector<double> minBounds; 
-        std::vector<double> maxBounds; 
-        pso_params parameters; 
+        double globalBestVal; 
+        std::vector<std::pair<double, double>> bounds; 
+        pso_params swarmParameters; 
         std::vector<std::vector<double>> swarmPoses; 
         std::vector<std::vector<double>> swarmVelos;
         std::vector<std::vector<double>> swarmBestPoses; 
-        std::vector<double> swarmBestVal; 
+        std::vector<double> swarmBestVals; 
         unsigned swarmSize; 
         unsigned dimention; 
     };
     void makeStep(pso_state &curSwarmState); 
+
+    pso_params swarmParams; 
+    pso_state swarmState;
 
 public:
     PSO(); 
@@ -34,8 +36,7 @@ public:
         double w,
         double phi_p, 
         double phi_g, 
-        const std::vector<double> &min,
-        const std::vector<double> &max, 
+        std::vector<std::pair<double, double>> bounds,
         unsigned swarmSize
     ); 
     void run(
@@ -48,6 +49,7 @@ public:
     bool dumpResult(
         std::string dumpfileName
     );
+    void visualize(); 
 }; 
 
 
