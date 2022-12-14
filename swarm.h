@@ -25,8 +25,7 @@ private:
         unsigned dimention; 
     };
     void makeStep(
-        const std::function<double(const std::vector<double>&)> &targFunc,
-        pso_state &curSwarmState
+        const std::function<double(const std::vector<double>&)> &targFunc
     ); 
 
     pso_params swarmParams; 

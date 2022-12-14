@@ -2,9 +2,10 @@
 
 
 double PSO::uniformAB(double A, double B) {
-    static std::default_random_engine generator;
-    static std::uniform_real_distribution<double> distribution(A, B);
-    return distribution(generator);
+    static std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<> distribution(A, B);
+    return distribution(gen);
 }
 
 PSO::PSO() { }
@@ -48,6 +49,12 @@ void PSO::init(
                 1 * std::abs( bounds[d].first - bounds[d].second )
             );
     }
+    
+    PSO::swarmState.bounds.resize(dimensions); 
+    for (int d = 0; d < dimensions; ++d) {
+        PSO::swarmState.bounds[d].first = bounds[d].first;
+        PSO::swarmState.bounds[d].second = bounds[d].second;
+    }
     // swarm size init 
     PSO::swarmState.swarmSize = swarmSize; 
 
@@ -57,22 +64,30 @@ void PSO::init(
 
     PSO::swarmState.curNumIterations = 0; 
 
+    
+
     double globalBestVal = HUGE_VAL; 
 }
 
 void PSO::makeStep(
-    const std::function<double(const std::vector<double>&)> &targFunc,
-    pso_state &curSwarmState
+    const std::function<double(const std::vector<double>&)> &targFunc
 ) {
-    for (int i = 0; i < curSwarmState.swarmSize; ++i) {
-        for (int d = 0; d < curSwarmState.dimention; ++d) {
-            double r_p = uniformAB(0.0, 1.0); 
-            double r_g = uniformAB(0.0, 1.0);
-            swarmState.swarmVelos[i][d] = swarmState.swarmParameters.w * swarmState.swarmVelos[i][d] +
-                swarmState.swarmParameters.phi_p * r_p * (swarmState.swarmBestPoses[i][d] - swarmState.swarmPoses[i][d]) + 
-                swarmState.swarmParameters.phi_g * r_g * (swarmState.swarmBestPoses[i][d] - swarmState.swarmPoses[i][d]); 
-            swarmState.swarmPoses[i][d] += swarmState.swarmVelos[i][d]; 
+    double r_g = uniformAB(0.0, 1.0);
+
+    for (int i = 0; i < PSO::swarmState.swarmSize; ++i) { 
+        double r_p = uniformAB(0.0, 1.0); 
+        bool ok = true;
+        for (int d = 0; d < PSO::swarmState.dimention; ++d) {
+            PSO::swarmState.swarmVelos[i][d] = PSO::swarmState.swarmParameters.w * PSO::swarmState.swarmVelos[i][d] +
+                PSO::swarmState.swarmParameters.phi_p * r_p * (PSO::swarmState.swarmBestPoses[i][d] - PSO::swarmState.swarmPoses[i][d]) + 
+                PSO::swarmState.swarmParameters.phi_g * r_g * (PSO::swarmState.globalBestPos[d] - PSO::swarmState.swarmPoses[i][d]); 
+            PSO::swarmState.swarmPoses[i][d] += PSO::swarmState.swarmVelos[i][d]; 
+
+            ok = ok && PSO::swarmState.bounds[d].first < PSO::swarmState.swarmPoses[i][d] && PSO::swarmState.bounds[d].second > PSO::swarmState.swarmPoses[i][d];
         }
+        if (!ok)
+            for (int d = 0; d < PSO::swarmState.dimention; ++d) 
+                PSO::swarmState.swarmPoses[i][d] = PSO::swarmState.bounds[d].first + (PSO::swarmState.bounds[d].second - PSO::swarmState.bounds[d].first) * uniformAB(0.0, 1.0); 
         if (targFunc(swarmState.swarmPoses[i]) < targFunc(swarmState.swarmBestPoses[i])) {
             for (int d = 0; d < PSO::swarmState.dimention; ++d)
                  PSO::swarmState.swarmBestPoses[i][d] = PSO::swarmState.swarmPoses[i][d]; 
@@ -89,7 +104,7 @@ void PSO::makeStep(
     unsigned numOfIterations
 ) {
     while (PSO::swarmState.curNumIterations < numOfIterations)
-        PSO::makeStep(targFunc, PSO::swarmState); 
+        PSO::makeStep(targFunc); 
  }
 
  bool PSO::dumpResult(std::string s) {
@@ -110,7 +125,7 @@ double test(const std::vector<double> & x) {
     auto a = x[0];
     auto b = x[1];
     
-    return (a-2)*(a-2) + (b-3)*(b-3);
+    return (a+2)*(a+2) + (b-3)*(b-3);
 }
 
 double michalewicz(const std::vector<double> & x) {
@@ -128,7 +143,7 @@ double michalewicz(const std::vector<double> & x) {
 int main() {
     PSO pso; 
     pso.init(
-        0.1, 0.1, 0.1,
+        0.1, 0.3, 0.3,
         {{-1.5, 4.0}, {-3.0, 4.0}},
         1000
     );
@@ -136,20 +151,21 @@ int main() {
     pso.dumpResult("FUCK"); 
 //
     pso.init(
-        0.4, 0.5, 0.3,
+        0.4, 0.3, 0.3,
         {{-4, 4}, {-4, 4}},
         100
     );
-    pso.run(test, 100); 
+    pso.run(test, 40); 
     pso.dumpResult("FUCKKK"); 
 //
-    pso.init(
+PSO pso1; 
+    pso1.init(
         0.3, 0.3, 0.3,
         {{0, std::acos(-1.0)}, {0, std::acos(-1.0)}},
-        2000
+        1000
     );
-    pso.run(michalewicz, 300); 
-    pso.dumpResult("FUCKKKKKK"); 
+    pso1.run(michalewicz, 1000); 
+    pso1.dumpResult("FUCKKKKKK"); 
 
     return 0; 
 }
