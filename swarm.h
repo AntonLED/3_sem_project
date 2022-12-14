@@ -25,9 +25,11 @@ private:
         unsigned dimention; 
     };
     void makeStep(
-        const std::function<double(const std::vector<double>&)> &targFunc
+        const std::function<double(const std::vector<double>&)> &targFunc,
+        std::ofstream &outfile
     ); 
 
+    std::string dumpBuffer = ""; 
     pso_params swarmParams; 
     pso_state swarmState;
 

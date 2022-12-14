@@ -2,7 +2,7 @@
 
 
 double PSO::uniformAB(double A, double B) {
-    static std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    static std::random_device rd;  
     static std::mt19937 gen(rd());
     std::uniform_real_distribution<> distribution(A, B);
     return distribution(gen);
@@ -64,17 +64,29 @@ void PSO::init(
 
     PSO::swarmState.curNumIterations = 0; 
 
-    
-
-    double globalBestVal = HUGE_VAL; 
+    PSO::swarmState.globalBestVal =  HUGE_VAL;
 }
 
 void PSO::makeStep(
-    const std::function<double(const std::vector<double>&)> &targFunc
+    const std::function<double(const std::vector<double>&)> &targFunc,
+    std::ofstream &outfile
 ) {
     double r_g = uniformAB(0.0, 1.0);
 
     for (int i = 0; i < PSO::swarmState.swarmSize; ++i) { 
+        if (targFunc(PSO::swarmState.swarmPoses[i]) < targFunc(PSO::swarmState.swarmBestPoses[i])) {
+            for (int d = 0; d < PSO::swarmState.dimention; ++d)
+                 PSO::swarmState.swarmBestPoses[i][d] = PSO::swarmState.swarmPoses[i][d]; 
+            if (targFunc(PSO::swarmState.swarmBestPoses[i]) < targFunc(PSO::swarmState.globalBestPos)) 
+                for (int d = 0; d < PSO::swarmState.dimention; ++d)
+                    PSO::swarmState.globalBestPos[d] = PSO::swarmState.swarmBestPoses[i][d];
+        }
+
+        for (int d = 0; d < PSO::swarmState.dimention; ++d) {
+            outfile << PSO::swarmState.swarmPoses[i][d] << ' '; 
+        }
+        outfile << '\n'; 
+
         double r_p = uniformAB(0.0, 1.0); 
         bool ok = true;
         for (int d = 0; d < PSO::swarmState.dimention; ++d) {
@@ -82,19 +94,11 @@ void PSO::makeStep(
                 PSO::swarmState.swarmParameters.phi_p * r_p * (PSO::swarmState.swarmBestPoses[i][d] - PSO::swarmState.swarmPoses[i][d]) + 
                 PSO::swarmState.swarmParameters.phi_g * r_g * (PSO::swarmState.globalBestPos[d] - PSO::swarmState.swarmPoses[i][d]); 
             PSO::swarmState.swarmPoses[i][d] += PSO::swarmState.swarmVelos[i][d]; 
-
             ok = ok && PSO::swarmState.bounds[d].first < PSO::swarmState.swarmPoses[i][d] && PSO::swarmState.bounds[d].second > PSO::swarmState.swarmPoses[i][d];
         }
         if (!ok)
             for (int d = 0; d < PSO::swarmState.dimention; ++d) 
                 PSO::swarmState.swarmPoses[i][d] = PSO::swarmState.bounds[d].first + (PSO::swarmState.bounds[d].second - PSO::swarmState.bounds[d].first) * uniformAB(0.0, 1.0); 
-        if (targFunc(swarmState.swarmPoses[i]) < targFunc(swarmState.swarmBestPoses[i])) {
-            for (int d = 0; d < PSO::swarmState.dimention; ++d)
-                 PSO::swarmState.swarmBestPoses[i][d] = PSO::swarmState.swarmPoses[i][d]; 
-            if (targFunc(PSO::swarmState.swarmBestPoses[i]) < targFunc(PSO::swarmState.globalBestPos)) 
-                for (int d = 0; d < PSO::swarmState.dimention; ++d)
-                    PSO::swarmState.globalBestPos[d] = PSO::swarmState.swarmBestPoses[i][d];
-        }
     }
     PSO::swarmState.curNumIterations++; 
 }
@@ -103,16 +107,29 @@ void PSO::makeStep(
     const std::function<double(const std::vector<double>&)> &targFunc,
     unsigned numOfIterations
 ) {
-    while (PSO::swarmState.curNumIterations < numOfIterations)
-        PSO::makeStep(targFunc); 
+    std::ofstream outfile("./dump.txt");  
+    while (PSO::swarmState.curNumIterations < numOfIterations) {
+        PSO::makeStep(targFunc, outfile);
+        // outfile << "\n"; 
+    }
+    outfile.close();
+    PSO::swarmState.globalBestVal = targFunc(PSO::swarmState.globalBestPos); 
  }
 
- bool PSO::dumpResult(std::string s) {
-    std::cout << s << '\n'; 
-    for (int d = 0; d < PSO::swarmState.dimention; ++d)
-        std::cout << PSO::swarmState.globalBestPos[d] << ' ';
-    std::cout << '\n' ;
-    return true; 
+ bool PSO::dumpResult(std::string dumpfileName) {
+    std::ofstream outfile(dumpfileName);  
+    if (outfile.is_open()) {
+        outfile << "global minimum in ["; 
+        for (int d = 0; d < PSO::swarmState.dimention; ++d) 
+            outfile << PSO::swarmState.globalBestPos[d] << ' ';
+        outfile << "]\n";
+        outfile << "MIN = "; 
+        outfile << PSO::swarmState.globalBestVal << '\n'; 
+        outfile.close(); 
+        return true;
+    }
+    else 
+        return false;
  }
 
 double mccormick(const std::vector<double> & x) {
@@ -141,31 +158,54 @@ double michalewicz(const std::vector<double> & x) {
 }
 
 int main() {
+    unsigned iterNum = 100;
+
     PSO pso; 
     pso.init(
         0.1, 0.3, 0.3,
         {{-1.5, 4.0}, {-3.0, 4.0}},
         1000
     );
-    pso.run(mccormick, 100); 
-    pso.dumpResult("FUCK"); 
-//
+    pso.run(mccormick, iterNum); 
+    pso.dumpResult("./FUCK.txt"); 
+
+    system("python3 visual.py");
+    std::string pngs; 
+    for (int i = 0; i < iterNum; ++i)
+        pngs += "img_"+ std::to_string(i) + ".png ";
+    std::string r = "cd ./img && convert " + pngs + "out.gif";
+    system(r.c_str());
+    system("cd ./img && rm *.png");
+
+// //
     pso.init(
         0.4, 0.3, 0.3,
         {{-4, 4}, {-4, 4}},
         100
     );
     pso.run(test, 40); 
-    pso.dumpResult("FUCKKK"); 
+    pso.dumpResult("./FUCKKK.txt"); 
 //
-PSO pso1; 
-    pso1.init(
-        0.3, 0.3, 0.3,
-        {{0, std::acos(-1.0)}, {0, std::acos(-1.0)}},
-        1000
-    );
-    pso1.run(michalewicz, 1000); 
-    pso1.dumpResult("FUCKKKKKK"); 
+    // iterNum = 1000;
+    // pso.init(
+    //     0.3, 0.3, 0.3,
+    //     {{0, std::acos(-1.0)}, {0, std::acos(-1.0)}},
+    //     1000
+    // );
+    // pso.run(michalewicz, iterNum); 
+    // pso.dumpResult("./FUCKKKKKK.txt"); 
+
+
+    system("python3 visual.py");
+    pngs = ""; 
+    for (int i = 0; i < iterNum; ++i)
+        pngs += "img_"+ std::to_string(i) + ".png ";
+    r = "cd ./img && convert " + pngs + "out1.gif";
+    system(r.c_str());
+    system("cd ./img && rm *.png");
+
+
+
 
     return 0; 
 }
