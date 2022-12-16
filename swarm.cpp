@@ -1,6 +1,7 @@
 #include "swarm.h"
 
 
+
 double PSO::uniformAB(double A, double B) {
     static std::random_device rd;  
     static std::mt19937 gen(rd());
@@ -82,9 +83,8 @@ void PSO::makeStep(
                     PSO::swarmState.globalBestPos[d] = PSO::swarmState.swarmBestPoses[i][d];
         }
 
-        for (int d = 0; d < PSO::swarmState.dimention; ++d) {
+        for (int d = 0; d < PSO::swarmState.dimention; ++d) 
             outfile << PSO::swarmState.swarmPoses[i][d] << ' '; 
-        }
         outfile << '\n'; 
 
         double r_p = uniformAB(0.0, 1.0); 
@@ -107,30 +107,48 @@ void PSO::makeStep(
     const std::function<double(const std::vector<double>&)> &targFunc,
     unsigned numOfIterations
 ) {
-    std::ofstream outfile("./dump.txt");  
-    while (PSO::swarmState.curNumIterations < numOfIterations) {
+    std::ofstream outfile("./_dump.txt");  
+    while (PSO::swarmState.curNumIterations < numOfIterations)
         PSO::makeStep(targFunc, outfile);
-        // outfile << "\n"; 
-    }
     outfile.close();
+
     PSO::swarmState.globalBestVal = targFunc(PSO::swarmState.globalBestPos); 
+    std::ofstream resfile("./_runresult.txt"); 
+    resfile << "bounds:\n"; 
+    for (int d = 0; d < PSO::swarmState.dimention; ++d)
+        resfile << "    " << PSO::swarmState.bounds[d].first << ' ' << PSO::swarmState.bounds[d].second << '\n'; 
+    resfile << "num of particles: " << std::to_string(PSO::swarmState.swarmSize) << '\n'; 
+    resfile << "num of iterations: " << std::to_string(PSO::swarmState.curNumIterations) << '\n'; 
+    resfile << "global minimum in ["; 
+    for (int d = 0; d < PSO::swarmState.dimention; ++d) 
+        resfile << PSO::swarmState.globalBestPos[d] << ' ';
+    resfile << "]\n";
+    resfile << "MIN = "; 
+    resfile << PSO::swarmState.globalBestVal << '\n'; 
+    resfile.close();
  }
 
- bool PSO::dumpResult(std::string dumpfileName) {
-    std::ofstream outfile(dumpfileName);  
-    if (outfile.is_open()) {
-        outfile << "global minimum in ["; 
-        for (int d = 0; d < PSO::swarmState.dimention; ++d) 
-            outfile << PSO::swarmState.globalBestPos[d] << ' ';
-        outfile << "]\n";
-        outfile << "MIN = "; 
-        outfile << PSO::swarmState.globalBestVal << '\n'; 
-        outfile.close(); 
-        return true;
-    }
-    else 
-        return false;
- }
+void PSO::visualize(unsigned numOfIterations) {
+    system("rm out.gif");
+    system("mkdir ./img"); 
+    system("python3 visual.py");
+    std::string pngs; 
+    for (int i = 0; i < numOfIterations; ++i)
+        pngs += "img_"+ std::to_string(i) + ".png ";
+    std::string r = "cd ./img && convert " + pngs + "out.gif";
+    system(r.c_str());
+    system("mv ./img/out.gif ./");
+    system("rm -r ./img");
+    system("rm ./_dump.txt"); 
+}
+
+void PSO::run_and_visualize(
+    const std::function<double(const std::vector<double>&)> &targFunc,
+    unsigned numOfIterations
+) {
+    PSO::run(targFunc, numOfIterations);
+    PSO::visualize(numOfIterations); 
+}
 
 double mccormick(const std::vector<double> & x) {
     auto a = x[0];
@@ -158,55 +176,28 @@ double michalewicz(const std::vector<double> & x) {
 }
 
 int main() {
-    unsigned iterNum = 100;
-
     PSO pso; 
     pso.init(
         0.1, 0.3, 0.3,
         {{-1.5, 4.0}, {-3.0, 4.0}},
-        1000
+        50
     );
-    pso.run(mccormick, iterNum); 
-    pso.dumpResult("./FUCK.txt"); 
-
-    system("python3 visual.py");
-    std::string pngs; 
-    for (int i = 0; i < iterNum; ++i)
-        pngs += "img_"+ std::to_string(i) + ".png ";
-    std::string r = "cd ./img && convert " + pngs + "out.gif";
-    system(r.c_str());
-    system("cd ./img && rm *.png");
-
-// //
-    pso.init(
-        0.4, 0.3, 0.3,
-        {{-4, 4}, {-4, 4}},
-        100
-    );
-    pso.run(test, 40); 
-    pso.dumpResult("./FUCKKK.txt"); 
+    pso.run_and_visualize(mccormick, 50); 
+// 
+    // pso.init(
+    //     0.4, 0.3, 0.3,
+    //     {{-4, 4}, {-4, 4}},
+    //     100
+    // );
+    // pso.run_and_visualize(test, 40); 
 //
-    // iterNum = 1000;
     // pso.init(
     //     0.3, 0.3, 0.3,
     //     {{0, std::acos(-1.0)}, {0, std::acos(-1.0)}},
     //     1000
     // );
-    // pso.run(michalewicz, iterNum); 
-    // pso.dumpResult("./FUCKKKKKK.txt"); 
-
-
-    system("python3 visual.py");
-    pngs = ""; 
-    for (int i = 0; i < iterNum; ++i)
-        pngs += "img_"+ std::to_string(i) + ".png ";
-    r = "cd ./img && convert " + pngs + "out1.gif";
-    system(r.c_str());
-    system("cd ./img && rm *.png");
-
-
-
-
+    // pso.run(michalewicz, 1000); 
+//
     return 0; 
 }
 

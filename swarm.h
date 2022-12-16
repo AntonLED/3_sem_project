@@ -47,13 +47,13 @@ public:
         const std::function<double(const std::vector<double>&)> &targFunc,
         unsigned numOfIterations
     ); 
-    bool dump(
-        std::string dumpfileName
-    ); 
-    bool dumpResult(
-        std::string dumpfileName
+    void run_and_visualize(
+        const std::function<double(const std::vector<double>&)> &targFunc,
+        unsigned numOfIterations
     );
-    void visualize(); 
+    void visualize(
+        unsigned numOfIterations
+    ); 
 }; 
 
 
